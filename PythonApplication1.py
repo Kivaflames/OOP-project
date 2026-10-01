@@ -6,12 +6,12 @@ from reportlab.lib import colors
 # 1. SETUP & FILE VARIABLES
 # ==========================================
 # Using absolute file paths so the script knows exactly where to find your files
-ca1 = "C:\\Users\\Jordan Lee\\Downloads\\OOP\\Project\\Grades CA 1.csv"
-ca2 = "C:\\Users\\Jordan Lee\\Downloads\\OOP\\Project\\Grades CA 2.csv"
-exercises = "C:\\Users\\Jordan Lee\\Downloads\\OOP\\Project\\Grades Exercises.csv"
-final = "C:\\Users\\Jordan Lee\\Downloads\\OOP\\Project\\Grades Final Exam.csv"
-grade_grp = "C:\\Users\\Jordan Lee\\Downloads\\OOP\\Project\\Grades Groups.csv"
-group = "C:\\Users\\Jordan Lee\\Downloads\\OOP\\Project\\Groups.csv"
+ca1 = "Grades CA 1.csv"
+ca2 = "Grades CA 2.csv"
+exercises = "Grades Exercises.csv"
+final = "Grades Final Exam.csv"
+grade_grp = "Grades Groups.csv"
+group = "Groups.csv"
 
 # ==========================================
 # 2. HELPER FUNCTIONS
