@@ -1,0 +1,193 @@
+# ==========================================
+# 1. SETUP & FILE VARIABLES
+# ==========================================
+# Defining the file names as variables makes the code cleaner 
+# and easier to update if the file names ever change.
+ca1 = "Grades CA 1.csv"
+ca2 = "Grades CA 2.csv"
+exercises = "Grades Exercises.csv"
+final = "Grades Final Exam.csv"
+grade_grp = "Grades Groups.csv"
+group = "Groups.csv"
+
+# ==========================================
+# 2. HELPER FUNCTIONS
+# ==========================================
+def get_letter_grade(score):
+    """
+    Takes the final calculated percentage (out of 100) and returns 
+    the corresponding letter grade based on the SIT grading table.
+    """
+    if score >= 90: return "A+"
+    elif score >= 85: return "A"
+    elif score >= 80: return "A-"
+    elif score >= 75: return "B+"
+    elif score >= 70: return "B"
+    elif score >= 65: return "B-"
+    elif score >= 60: return "C+"
+    elif score >= 55: return "C"
+    elif score >= 50: return "C-"
+    elif score >= 45: return "D+"
+    elif score >= 40: return "D"
+    else: return "F"
+
+def read_csv_scores(filename):
+    """
+    Reads the assessment CSV files and returns a dictionary 
+    mapping each student's ID to their total raw score.
+    Example: {'12345': 21.0}
+    """
+    scores = {}
+    with open(filename, encoding="utf-8") as f:
+        # Read the file and split it line-by-line
+        lines = f.read().strip().split("\n")
+
+    # Loop through the lines, skipping the first row (the header)
+    for line in lines[1:]: 
+        if not line.strip():
+            continue
+        
+        # The assignment files use semicolons (;) to separate columns
+        parts = [p.strip() for p in line.split(";")]
+        student_id = parts[2] # ID is always in the 3rd column
+        
+        # Add up all the numerical question scores from column 4 onwards.
+        # Ignoring empty strings handles cases where a question was left blank.
+        total_score = sum(float(x) for x in parts[3:] if x != "")
+        
+        # Save the student's total score in the dictionary
+        scores[student_id] = total_score
+        
+    return scores
+
+# ==========================================
+# 3. MAIN EXECUTION
+# ==========================================
+def main():
+    # --- Extract Individual Scores ---
+    # Use the helper function to process all individual assignments
+    ca1_scores = read_csv_scores(ca1)
+    ca2_scores = read_csv_scores(ca2)
+    exercises_scores = read_csv_scores(exercises)
+    exam_scores = read_csv_scores(final)
+
+    # --- Read Group Mappings ---
+    # Creates a dictionary linking Student ID to their assigned Project Group
+    student_groups = {}
+    with open(group, encoding="utf-8") as f:
+        lines = f.read().strip().split("\n")
+        for line in lines[1:]:
+            if line.strip():
+                parts = line.split(";")
+                student_groups[parts[0].strip()] = parts[1].strip()
+
+    # --- Read Group Project Grades ---
+    # Creates a dictionary linking the Project Group number to the Project Score
+    group_scores = {}
+    with open(grade_grp, encoding="utf-8") as f:
+        lines = f.read().strip().split("\n")
+        for line in lines[1:]:
+            if line.strip():
+                parts = line.split(";")
+                group_scores[parts[0].strip()] = float(parts[1].strip())
+
+    # --- Determine Maximum Possible Scores ---
+    # To calculate percentages accurately, we find the highest score achieved 
+    # by any student in each dictionary. (This acts as the denominator)
+    max_c1 = max(ca1_scores.values()) if ca1_scores else 1.0
+    max_c2 = max(ca2_scores.values()) if ca2_scores else 1.0
+    max_ex = max(exercises_scores.values()) if exercises_scores else 1.0
+    max_exm = max(exam_scores.values()) if exam_scores else 1.0
+    max_proj = max(group_scores.values()) if group_scores else 1.0
+
+    # --- Build Student Roster ---
+    # We read CA1 strictly to build a master list of all student names and IDs
+    students = []
+    with open(ca1, encoding="utf-8") as f:
+        lines = f.read().strip().split("\n")
+        for line in lines[1:]:
+            if line.strip():
+                parts = [p.strip() for p in line.split(";")]
+                students.append({
+                    "last_name": parts[0],
+                    "first_name": parts[1],
+                    "id": parts[2],
+                })
+
+    # Sort the list alphabetically by Last Name, First Name, then ID
+    students.sort(key=lambda x: (x["last_name"].upper(), x["first_name"].upper(), x["id"]))
+
+    # --- Setup Exact CSV Structure Required by Assignment ---
+    # "sep=;" is added at the top so Excel automatically detects the columns
+    csv_lines = ["sep=;\n"]
+    
+    # Meaningful header exactly matching the 21 columns requested in the rubric
+    header = (
+        "Last name;First name;ID;"
+        "Total marks CA 1;Percentage achieved CA 1;Percentage CA 1 normalized to 15%;"
+        "Total marks CA 2;Percentage achieved CA 2;Percentage CA 2 normalized to 15%;"
+        "Total marks Exercises;Percentage achieved Exercises;Percentage Exercises normalized to 15%;"
+        "Project Group;Total marks Project;Percentage achieved Project;Percentage Project normalized to 15%;"
+        "Total marks Final Exam;Percentage achieved Final Exam;Percentage Final Exam normalized to 40%;"
+        "Total percentage;Overall grade\n"
+    )
+    csv_lines.append(header)
+
+    # --- Data Aggregation & Calculations ---
+    for s in students:
+        sid = s["id"]
+        
+        # 1. Get raw scores (defaults to 0.0 if the student missed it)
+        c1 = ca1_scores.get(sid, 0.0)
+        c2 = ca2_scores.get(sid, 0.0)
+        ex = exercises_scores.get(sid, 0.0)
+        exm = exam_scores.get(sid, 0.0)
+        
+        # Look up the group first, then find the score for that group
+        grp = student_groups.get(sid, "")
+        proj = group_scores.get(grp, 0.0)
+
+        # 2. Calculate standard percentages (Score / Max * 100)
+        p_c1 = (c1 / max_c1) * 100
+        p_c2 = (c2 / max_c2) * 100
+        p_ex = (ex / max_ex) * 100
+        p_exm = (exm / max_exm) * 100
+        p_proj = (proj / max_proj) * 100
+
+        # 3. Calculate normalized percentages based on syllabus weights
+        # Multiplying the standard percentage by 0.15 is the mathematical 
+        # equivalent to (score / max * 15)
+        n_c1 = p_c1 * 0.15   # 15% weight
+        n_c2 = p_c2 * 0.15   # 15% weight
+        n_ex = p_ex * 0.15   # 15% weight
+        n_proj = p_proj * 0.15 # 15% weight
+        n_exm = p_exm * 0.40 # 40% weight
+
+        # 4. Sum the normalized weights to get the final course percentage
+        total_percentage = n_c1 + n_c2 + n_ex + n_proj + n_exm
+        grade = get_letter_grade(total_percentage)
+
+        # 5. Format the row string. 
+        # The ':.2f' forces every number to exactly two decimal points,
+        # perfectly satisfying the assignment's decimal requirement.
+        row = (
+            f"{s['last_name']};{s['first_name']};{sid};"
+            f"{c1:.2f};{p_c1:.2f};{n_c1:.2f};"
+            f"{c2:.2f};{p_c2:.2f};{n_c2:.2f};"
+            f"{ex:.2f};{p_ex:.2f};{n_ex:.2f};"
+            f"{grp};{proj:.2f};{p_proj:.2f};{n_proj:.2f};"
+            f"{exm:.2f};{p_exm:.2f};{n_exm:.2f};"
+            f"{total_percentage:.2f};{grade}\n"
+        )
+        csv_lines.append(row)
+
+    # --- Export to CSV ---
+    # Writes all the generated strings into the final results.csv file
+    csv_output = "results.csv"
+    with open(csv_output, "w", encoding="utf-8") as f:
+        f.writelines(csv_lines)
+    print(f"Output successfully saved to {csv_output}")
+
+# Standard Python entry point
+if __name__ == "__main__":
+    main()
